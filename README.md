@@ -4,7 +4,7 @@ This is the Pytorch implementation of our following paper:
 
 
 ## Environment
-This code has been tested with PyTorch  1.10.0  Python  3.8, CUDA 11.3  on Ubuntu 20.04.
+This code has been tested with PyTorch  1.10.0  Python  3.8, CUDA 11.3  on Ubuntu 20.04, NVIDIA GeForce 3090 or 2080Ti
 
 1. Create a conda env with
    ```bash
@@ -61,7 +61,7 @@ The training commands for S3DIS, ShapeNetPart, ModelNet40, and scannetv2 are sum
 
     # using GPU 0
     ./scripts/test_s3dis.sh 0
-    
+
 Other trained models can be similarly evaluated.
     
 ## Acknowledgment
