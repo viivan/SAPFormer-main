@@ -192,7 +192,7 @@ def create_test_log(log_path, flag='best', name='main-logger'):
 
     return logger
 
-def create_eval_log(checkpoint='shapenetpart_cdformer.pth', name='main-logger'):
+def create_eval_log(checkpoint='shapenetpart_sapformer.pth', name='main-logger'):
     log_path = os.path.basename(checkpoint).split('.')[0]
     dataset, model = log_path.split('_')
     log_path = os.path.join('output', dataset, model, 'eval')

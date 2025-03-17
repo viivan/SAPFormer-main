@@ -21,7 +21,6 @@ from tensorboardX import SummaryWriter
 
 from util import dataset, config
 from util.s3dis import S3DIS
-from util.scannet_v2 import Scannetv2
 from util.common_util import AverageMeter, intersectionAndUnionGPU, find_free_port, poly_learning_rate, smooth_loss
 from util.common_util import code_backup, create_log, get_git_revision_hash, set_random_seed
 from util.data_util import collate_fn, collate_fn_limit
@@ -34,7 +33,6 @@ from util.lr import MultiStepWithWarmup, PolyLR, PolyLRwithWarmup, CosineAnneali
 from util.cross_entropy import SmoothCrossEntropy
 from torch.optim.lr_scheduler import CosineAnnealingLR, CosineAnnealingWarmRestarts
 import torch_points_kernels as tp
-from util.scannet_v2 import Scannetv2
 
 def get_parser():
     parser = argparse.ArgumentParser(description='SAPFormer For Point Cloud Semantic Segmentation')
@@ -119,11 +117,9 @@ def main_worker(rank, argss):
     model = Net.SAPFormer(downscale=args.downsample_scale, num_heads=args.num_heads, depths=args.depths, channels=args.channels, k=args.k,
                             up_k=args.up_k, drop_path_rate=args.drop_path_rate, ratio=args.ratio, num_layers=args.num_layers,
                             concat_xyz=args.concat_xyz, num_classes=args.classes, stem_transformer=args.stem_transformer)
-
     if main_process():
         logger.info(model)
-        logger.info('#Model parameters: {}'.format(sum([x.nelement() for x in model.parameters()])))
-
+        
     # set optimizer
     if args.optimizer == 'SGD':
         optimizer = torch.optim.SGD(model.parameters(), lr=args.base_lr, momentum=args.momentum, weight_decay=args.weight_decay)
@@ -154,7 +150,7 @@ def main_worker(rank, argss):
             if main_process():
                 logger.info("use SyncBN")
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).cuda()
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank], find_unused_parameters=False)
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank], find_unused_parameters=True)
     else:
         model = torch.nn.DataParallel(model.cuda())
 
@@ -203,23 +199,6 @@ def main_worker(rank, argss):
         criterion = SmoothCrossEntropy(ignore_index=args.ignore_label, num_classes=args.classes, label_smoothing=args.label_smoothing).cuda()
         if main_process():
             logger.info("criterion: {}".format(criterion))
-    elif args.data_name == 'scannetv2':
-        train_transform = None
-        if args.aug:
-            if main_process():
-                logger.info("use Augmentation")
-            train_transform = transform.Compose([
-                transform.RandomRotate(along_z=args.get('rotate_along_z', True)),
-                transform.RandomScale(scale_low=args.get('scale_low', 0.8), scale_high=args.get('scale_high', 1.2)),
-                transform.RandomDropColor(color_augment=args.get('color_augment', 0.0))
-            ])
-
-        train_split = args.get("train_split", "train")
-        if main_process():
-            logger.info("scannet. train_split: {}".format(train_split))
-
-        train_data = Scannetv2(split=train_split, data_root=args.data_root, voxel_size=args.voxel_size,
-                               voxel_max=args.voxel_max, transform=train_transform, shuffle_index=True, loop=args.loop)
     else:
         raise ValueError("The dataset {} is not supported.".format(args.data_name))
 
@@ -235,9 +214,6 @@ def main_worker(rank, argss):
     val_transform = None
     if args.data_name == 's3dis':
         val_data = S3DIS(split='val', data_root=args.data_root, test_area=args.test_area, voxel_size=args.voxel_size, voxel_max=300000, transform=val_transform)
-    elif args.data_name == 'scannetv2':
-        val_data = Scannetv2(split='val', data_root=args.data_root, voxel_size=args.voxel_size, voxel_max=800000,
-                             transform=val_transform)
     else:
         raise ValueError("The dataset {} is not supported.".format(args.data_name))
 

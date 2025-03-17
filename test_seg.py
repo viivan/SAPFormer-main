@@ -20,7 +20,6 @@ from util.common_util import AverageMeter, intersectionAndUnion, check_makedirs
 from util.common_util import set_random_seed, create_eval_log, create_test_log
 from util.voxelize import voxelize
 from util.s3dis import s3dis_names
-from util.scannet_v2 import Scannetv2
 import torch_points_kernels as tp
 import torch.nn.functional as F
 
@@ -71,50 +70,48 @@ def main():
         for k, v in state_dict.items():
             name = k[7:]
             new_state_dict[name.replace("item", "stem")] = v
-        model.load_state_dict(new_state_dict, strict=True)
-        logger.info("=> loaded checkpoint '{}' (epoch {})".format(args.model_path, checkpoint['epoch']))
         args.epoch = checkpoint['epoch']
     else:
         raise RuntimeError("=> no checkpoint found at '{}'".format(args.model_path))
 
 
     # transform
-    # test_transform_set = []
-    # test_transform_set.append(None) # for None aug
-    # test_transform_set.append(None) # for permutate
+    test_transform_set = []
+    test_transform_set.append(None) # for None aug
+    test_transform_set.append(None) # for permutate
 
     # aug 90
-    # logger.info("augmentation roate")
-    # logger.info("rotate_angle: {}".format(90))
-    # test_transform = transform.RandomRotate(rotate_angle=90, along_z=args.get('rotate_along_z', True))
-    # test_transform_set.append(test_transform)
+    logger.info("augmentation roate")
+    logger.info("rotate_angle: {}".format(90))
+    test_transform = transform.RandomRotate(rotate_angle=90, along_z=args.get('rotate_along_z', True))
+    test_transform_set.append(test_transform)
 
     # aug 180
-    # logger.info("augmentation roate")
-    # logger.info("rotate_angle: {}".format(180))
-    # test_transform = transform.RandomRotate(rotate_angle=180, along_z=args.get('rotate_along_z', True))
-    # test_transform_set.append(test_transform)
+    logger.info("augmentation roate")
+    logger.info("rotate_angle: {}".format(180))
+    test_transform = transform.RandomRotate(rotate_angle=180, along_z=args.get('rotate_along_z', True))
+    test_transform_set.append(test_transform)
 
     # aug 270
-    # logger.info("augmentation roate")
-    # logger.info("rotate_angle: {}".format(270))
-    # test_transform = transform.RandomRotate(rotate_angle=270, along_z=args.get('rotate_along_z', True))
-    # test_transform_set.append(test_transform)
+    logger.info("augmentation roate")
+    logger.info("rotate_angle: {}".format(270))
+    test_transform = transform.RandomRotate(rotate_angle=270, along_z=args.get('rotate_along_z', True))
+    test_transform_set.append(test_transform)
 
 
     # RandomDiffScale
 
     test_transform = transform.RandomDiffScale(scale_low=0.8)
 
-    # if args.data_name == 's3dis':
-    #
-    #     # shift +0.2
-    #     test_transform = transform.RandomShift_test(shift_range=0.2)
-    #     test_transform_set.append(test_transform)
-    #
-    #     # shift -0.2
-    #     test_transform = transform.RandomShift_test(shift_range=-0.2)
-    #     test_transform_set.append(test_transform)
+    if args.data_name == 's3dis':
+    
+        # shift +0.2
+        test_transform = transform.RandomShift_test(shift_range=0.2)
+        test_transform_set.append(test_transform)
+    
+        # shift -0.2
+        test_transform = transform.RandomShift_test(shift_range=-0.2)
+        test_transform_set.append(test_transform)
 
     test(model, criterion, s3dis_names, test_transform_set)
 
@@ -123,9 +120,6 @@ def data_prepare():
     if args.data_name == 's3dis':
         data_list = sorted(os.listdir(args.data_root))
         data_list = [item[:-4] for item in data_list if 'Area_{}'.format(args.test_area) in item]
-    elif args.data_name == 'scannetv2':
-        data_list = sorted(os.listdir(args.data_root_val))
-        data_list = [item[:-4] for item in data_list if '.pth' in item]
     else:
         raise Exception('dataset not supported yet'.format(args.data_name))
     logger.info("Totally {} samples in val set.".format(len(data_list)))
@@ -138,10 +132,6 @@ def data_load(data_name, transform):
         data_path = os.path.join(args.data_root, data_name + '.npy')
         data = np.load(data_path)  # xyzrgbl, N*7
         coord, feat, label = data[:, :3], data[:, 3:6], data[:, 6]
-    elif args.data_name == 'scannetv2':
-        data_path = os.path.join(args.data_root_val, data_name + '.pth')
-        data = torch.load(data_path)  # xyzrgbl, N*7
-        coord, feat, label = data[0], data[1], data[2]
     else:
         raise Exception('dataset not supported yet'.format(args.data_name))
 

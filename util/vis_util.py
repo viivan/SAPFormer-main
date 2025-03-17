@@ -3,6 +3,8 @@ import sys
 import numpy as np
 import matplotlib.pyplot as pyplot
 
+
+#S3DIS
 colors = {'ceiling':[0,255,0],
           'floor':[0,0,255],
           'wall':[0,255,255],
